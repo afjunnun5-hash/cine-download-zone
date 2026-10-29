@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Heart, Search, Home, Compass, Star, X, Menu, Server } from 'lucide-react';
 
-// পাবলিক স্ট্রিমিং সার্ভার অপশনসমূহ (একটি কাজ না করলে অন্যটি চলবে)
+const TMDB_API_KEY = "89260c6943a055be3d0016e6d1c81525"; // Public TMDB API Key
 const STREAM_SERVERS = [
-  { name: "Server 1 (Fast)", url: (id) => `https://vidsrc.to/embed/movie/${id}` },
+  { name: "Server 1 (VidSrc)", url: (id) => `https://vidsrc.to/embed/movie/${id}` },
   { name: "Server 2 (Embed.su)", url: (id) => `https://embed.su/embed/movie/${id}` },
   { name: "Server 3 (VidSrc.cc)", url: (id) => `https://vidsrc.cc/v2/embed/movie/${id}` },
-  { name: "Server 4 (AutoEmbed)", url: (id) => `https://autoembed.co/movie/tmdb/${id}` }
+  { name: "Server 4 (2Embed)", url: (id) => `https://www.2embed.cc/embed/${id}` }
 ];
 
 export default function App() {
@@ -18,94 +18,74 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ১00% ওয়ার্কিং TMDB আইডি ও সঠিক পোস্টার লিংক
-  const defaultMovies = [
-    { 
-      id: 533535, 
-      title: "Deadpool & Wolverine", 
-      year: "2024", 
-      genre: "Action / Comedy", 
-      poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/9l1eZiJHmhr5jIlthMdJN5WYoff.jpg", 
-      desc: "Wolverine is recovering from his injuries when he crosses paths with the loudmouth Deadpool." 
-    },
-    { 
-      id: 872585, 
-      title: "Oppenheimer", 
-      year: "2023", 
-      genre: "Drama / History", 
-      poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBRoOoA0i.jpg", 
-      desc: "The story of American scientist J. Robert Oppenheimer and his role in the atomic bomb." 
-    },
-    { 
-      id: 603692, 
-      title: "John Wick: Chapter 4", 
-      year: "2023", 
-      genre: "Action / Thriller", 
-      poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/7I6VUdPj6tQECNHdviJkUHD2u89.jpg", 
-      desc: "John Wick uncovers a path to defeating The High Table." 
-    },
-    { 
-      id: 27205, 
-      title: "Inception", 
-      year: "2010", 
-      genre: "Sci-Fi / Thriller", 
-      poster: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/8ZTVqvKdQ8QL3m85fJ5jM1E3R75.jpg", 
-      desc: "A thief who steals corporate secrets through dream-sharing technology." 
-    },
-    { 
-      id: 157336, 
-      title: "Interstellar", 
-      year: "2014", 
-      genre: "Sci-Fi / Drama", 
-      poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/pbrkL804c8yAv3zBZR4QPEafpAR.jpg", 
-      desc: "A team of explorers travel through a wormhole in space to save humanity." 
-    },
-    { 
-      id: 634649, 
-      title: "Spider-Man: No Way Home", 
-      year: "2021", 
-      genre: "Action / Adventure", 
-      poster: "https://image.tmdb.org/t/p/w500/5P8202T320R2A2P345.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/iQFcwSGbZLc71IG4aRkRER1lX3u.jpg", 
-      desc: "Peter Parker's secret identity is revealed to the entire world." 
-    },
-    { 
-      id: 155, 
-      title: "The Dark Knight", 
-      year: "2008", 
-      genre: "Action / Crime", 
-      poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg", 
-      desc: "Batman fights against the psychological chaos unleashed by the Joker." 
-    },
-    { 
-      id: 76600, 
-      title: "Avatar: The Way of Water", 
-      year: "2022", 
-      genre: "Sci-Fi / Action", 
-      poster: "https://image.tmdb.org/t/p/w500/t6HIqrB5F9Z8Vl4sUq27Z86L8gZ.jpg", 
-      backdrop: "https://image.tmdb.org/t/p/original/s16H6tpK2utvwDtzZ8Qy4qm5Emw.jpg", 
-      desc: "Jake Sully lives with his newfound family formed on the planet of Pandora." 
-    }
-  ];
-
+  // TMDB API theke automatic notun trending movie fetch korar logic
   useEffect(() => {
-    setMovies(defaultMovies);
-    setFeatured(defaultMovies[0]);
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
+    const fetchTrendingMovies = async () => {
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`
+        );
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          const formattedMovies = data.results.map((item) => ({
+            id: item.id,
+            title: item.title || item.original_title,
+            year: item.release_date ? item.release_date.split('-')[0] : 'N/A',
+            poster: item.poster_path 
+              ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60',
+            backdrop: item.backdrop_path 
+              ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
+              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1000&auto=format&fit=crop&q=60',
+            desc: item.overview || 'No description available.'
+          }));
+          setMovies(formattedMovies);
+          setFeatured(formattedMovies[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching movies from TMDB:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrendingMovies();
   }, []);
 
-  const filteredMovies = movies.filter(movie => 
-    movie.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search functionality (Automatic API Search)
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    
+    const searchMovies = async () => {
+      try {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(searchQuery)}`
+        );
+        const data = await response.json();
+        if (data.results) {
+          const formatted = data.results.map((item) => ({
+            id: item.id,
+            title: item.title || item.original_title,
+            year: item.release_date ? item.release_date.split('-')[0] : 'N/A',
+            poster: item.poster_path 
+              ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60',
+            backdrop: item.backdrop_path 
+              ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
+              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1000&auto=format&fit=crop&q=60',
+            desc: item.overview || 'No description available.'
+          }));
+          setMovies(formatted);
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+      }
+    };
 
-  // ইমেজ লোড না হলে ব্যাকআপ ইমেজ দেখানোর হ্যান্ডলার
+    const timer = setTimeout(() => searchMovies(), 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const handleImageError = (e) => {
     e.target.src = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60";
   };
@@ -115,7 +95,7 @@ export default function App() {
       <div className="min-h-screen bg-[#141416] flex items-center justify-center">
         <div className="text-emerald-500 flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="tracking-widest font-mono text-sm">CONNECTING CINE ZONE SERVERS...</p>
+          <p className="tracking-widest font-mono text-sm">FETCHING LATEST MOVIES...</p>
         </div>
       </div>
     );
@@ -157,7 +137,7 @@ export default function App() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input 
               type="text" 
-              placeholder="Search movies..." 
+              placeholder="Search any movie live..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#1a1c1f] text-sm text-white rounded-full py-2.5 pl-11 pr-4 focus:outline-none border border-gray-800 focus:border-emerald-500"
@@ -166,7 +146,7 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 rounded-full flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Multi-Server Online
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Sync Active
             </span>
           </div>
         </header>
@@ -197,9 +177,9 @@ export default function App() {
         )}
 
         <div className="px-8 pb-10 flex-1">
-          <h3 className="text-lg font-semibold mb-6">{searchQuery ? 'Search Results' : 'Trending Movies'}</h3>
+          <h3 className="text-lg font-semibold mb-6">{searchQuery ? 'Search Results' : 'Trending Movies Today'}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredMovies.map(movie => (
+            {movies.map(movie => (
               <div 
                 key={movie.id} 
                 className="group relative rounded-xl overflow-hidden cursor-pointer bg-[#1a1c1f]"
@@ -226,13 +206,13 @@ export default function App() {
         </div>
       </main>
 
-      {/* Video Player Modal With Multi-Server Switcher */}
+      {/* Video Player Modal */}
       {selectedMovie && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col">
           <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
             <div>
               <h3 className="text-lg font-bold">{selectedMovie.title} ({selectedMovie.year})</h3>
-              <p className="text-xs text-gray-400">If video fails, switch to another server below</p>
+              <p className="text-xs text-gray-400">Click Play button inside the player frame below</p>
             </div>
             <button 
               onClick={() => setSelectedMovie(null)} 
@@ -242,10 +222,9 @@ export default function App() {
             </button>
           </div>
           
-          {/* Main Video Iframe */}
           <div className="flex-1 w-full bg-black relative flex items-center justify-center p-2">
             <iframe 
-              key={activeServerIndex}
+              key={`${selectedMovie.id}-${activeServerIndex}`}
               src={STREAM_SERVERS[activeServerIndex].url(selectedMovie.id)} 
               className="w-full h-full max-w-6xl max-h-[80vh] rounded-lg border border-white/10"
               allowFullScreen
@@ -253,7 +232,6 @@ export default function App() {
             ></iframe>
           </div>
 
-          {/* Server Switcher Bar */}
           <div className="p-4 bg-[#1a1c1f] border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
             <span className="text-xs text-gray-400 flex items-center gap-1 mr-2"><Server size={14} /> Change Stream Server:</span>
             {STREAM_SERVERS.map((server, idx) => (
