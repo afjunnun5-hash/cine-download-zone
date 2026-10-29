@@ -1,68 +1,92 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Heart, Search, Home, Compass, Star, X, Menu, Server } from 'lucide-react';
+import { Play, Heart, Search, Home, Compass, Star, X, Menu, Server, ExternalLink } from 'lucide-react';
 
-const TMDB_API_KEY = "89260c6943a055be3d0016e6d1c81525"; // Public TMDB API Key
+const TMDB_API_KEY = "89260c6943a055be3d0016e6d1c81525";
+
+// ব্যাকআপ মুভি লিস্ট (যাতে API ব্যর্থ হলেও সাইট কখনো ফাঁকা না দেখায়)
+const FALLBACK_MOVIES = [
+  { 
+    id: 533535, 
+    title: "Deadpool & Wolverine", 
+    year: "2024", 
+    genre: "Action", 
+    poster: "https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/9l1eZiJHmhr5jIlthMdJN5WYoff.jpg", 
+    desc: "Wolverine is recovering from his injuries when he crosses paths with the loudmouth Deadpool." 
+  },
+  { 
+    id: 872585, 
+    title: "Oppenheimer", 
+    year: "2023", 
+    genre: "Drama", 
+    poster: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/fm6KqXpk3M2HVveHwCrBRoOoA0i.jpg", 
+    desc: "The story of American scientist J. Robert Oppenheimer and his role in the atomic bomb." 
+  },
+  { 
+    id: 603692, 
+    title: "John Wick: Chapter 4", 
+    year: "2023", 
+    genre: "Action", 
+    poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/7I6VUdPj6tQECNHdviJkUHD2u89.jpg", 
+    desc: "John Wick uncovers a path to defeating The High Table." 
+  },
+  { 
+    id: 27205, 
+    title: "Inception", 
+    year: "2010", 
+    genre: "Sci-Fi", 
+    poster: "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/8ZTVqvKdQ8QL3m85fJ5jM1E3R75.jpg", 
+    desc: "A thief who steals corporate secrets through dream-sharing technology." 
+  },
+  { 
+    id: 157336, 
+    title: "Interstellar", 
+    year: "2014", 
+    genre: "Sci-Fi", 
+    poster: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/pbrkL804c8yAv3zBZR4QPEafpAR.jpg", 
+    desc: "A team of explorers travel through a wormhole in space to save humanity." 
+  },
+  { 
+    id: 155, 
+    title: "The Dark Knight", 
+    year: "2008", 
+    genre: "Action", 
+    poster: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", 
+    backdrop: "https://image.tmdb.org/t/p/original/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg", 
+    desc: "Batman fights against the psychological chaos unleashed by the Joker." 
+  }
+];
+
 const STREAM_SERVERS = [
   { name: "Server 1 (VidSrc)", url: (id) => `https://vidsrc.to/embed/movie/${id}` },
   { name: "Server 2 (Embed.su)", url: (id) => `https://embed.su/embed/movie/${id}` },
-  { name: "Server 3 (VidSrc.cc)", url: (id) => `https://vidsrc.cc/v2/embed/movie/${id}` },
-  { name: "Server 4 (2Embed)", url: (id) => `https://www.2embed.cc/embed/${id}` }
+  { name: "Server 3 (VidSrc Pro)", url: (id) => `https://vidsrc.pro/embed/movie/${id}` },
+  { name: "Server 4 (AutoEmbed)", url: (id) => `https://autoembed.co/movie/tmdb/${id}` }
 ];
 
 export default function App() {
-  const [movies, setMovies] = useState([]);
-  const [featured, setFeatured] = useState(null);
+  const [movies, setMovies] = useState(FALLBACK_MOVIES);
+  const [featured, setFeatured] = useState(FALLBACK_MOVIES[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [activeServerIndex, setActiveServerIndex] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // TMDB API theke automatic notun trending movie fetch korar logic
   useEffect(() => {
+    // TMDB Fetch চেষ্টা করা হবে, ফেইল করলে ব্যাকআপ মুভিগুলোই থাকবে
     const fetchTrendingMovies = async () => {
       try {
         const response = await fetch(
           `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`
         );
+        if (!response.ok) throw new Error("API network response was not ok");
         const data = await response.json();
+        
         if (data.results && data.results.length > 0) {
-          const formattedMovies = data.results.map((item) => ({
-            id: item.id,
-            title: item.title || item.original_title,
-            year: item.release_date ? item.release_date.split('-')[0] : 'N/A',
-            poster: item.poster_path 
-              ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60',
-            backdrop: item.backdrop_path 
-              ? `https://image.tmdb.org/t/p/original${item.backdrop_path}`
-              : 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1000&auto=format&fit=crop&q=60',
-            desc: item.overview || 'No description available.'
-          }));
-          setMovies(formattedMovies);
-          setFeatured(formattedMovies[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching movies from TMDB:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTrendingMovies();
-  }, []);
-
-  // Search functionality (Automatic API Search)
-  useEffect(() => {
-    if (!searchQuery.trim()) return;
-    
-    const searchMovies = async () => {
-      try {
-        const response = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(searchQuery)}`
-        );
-        const data = await response.json();
-        if (data.results) {
           const formatted = data.results.map((item) => ({
             id: item.id,
             title: item.title || item.original_title,
@@ -76,30 +100,19 @@ export default function App() {
             desc: item.overview || 'No description available.'
           }));
           setMovies(formatted);
+          setFeatured(formatted[0]);
         }
-      } catch (err) {
-        console.error("Search error:", err);
+      } catch (error) {
+        console.log("Using local backup movies due to network restriction.");
       }
     };
 
-    const timer = setTimeout(() => searchMovies(), 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    fetchTrendingMovies();
+  }, []);
 
-  const handleImageError = (e) => {
-    e.target.src = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=60";
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#141416] flex items-center justify-center">
-        <div className="text-emerald-500 flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="tracking-widest font-mono text-sm">FETCHING LATEST MOVIES...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredMovies = movies.filter(movie => 
+    movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex h-screen bg-[#141416] text-white font-sans overflow-hidden">
@@ -137,7 +150,7 @@ export default function App() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input 
               type="text" 
-              placeholder="Search any movie live..." 
+              placeholder="Search movies..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#1a1c1f] text-sm text-white rounded-full py-2.5 pl-11 pr-4 focus:outline-none border border-gray-800 focus:border-emerald-500"
@@ -146,7 +159,7 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 rounded-full flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Sync Active
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Online
             </span>
           </div>
         </header>
@@ -158,7 +171,6 @@ export default function App() {
               <img 
                 src={featured.backdrop} 
                 alt={featured.title} 
-                onError={handleImageError}
                 className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition duration-700" 
               />
               
@@ -177,9 +189,9 @@ export default function App() {
         )}
 
         <div className="px-8 pb-10 flex-1">
-          <h3 className="text-lg font-semibold mb-6">{searchQuery ? 'Search Results' : 'Trending Movies Today'}</h3>
+          <h3 className="text-lg font-semibold mb-6">Trending Movies</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {movies.map(movie => (
+            {filteredMovies.map(movie => (
               <div 
                 key={movie.id} 
                 className="group relative rounded-xl overflow-hidden cursor-pointer bg-[#1a1c1f]"
@@ -189,7 +201,6 @@ export default function App() {
                   <img 
                     src={movie.poster} 
                     alt={movie.title} 
-                    onError={handleImageError}
                     className="w-full h-full object-cover transition duration-500 group-hover:scale-110 group-hover:opacity-40" 
                   />
                 </div>
@@ -212,7 +223,6 @@ export default function App() {
           <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
             <div>
               <h3 className="text-lg font-bold">{selectedMovie.title} ({selectedMovie.year})</h3>
-              <p className="text-xs text-gray-400">Click Play button inside the player frame below</p>
             </div>
             <button 
               onClick={() => setSelectedMovie(null)} 
@@ -228,12 +238,14 @@ export default function App() {
               src={STREAM_SERVERS[activeServerIndex].url(selectedMovie.id)} 
               className="w-full h-full max-w-6xl max-h-[80vh] rounded-lg border border-white/10"
               allowFullScreen
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              referrerPolicy="no-referrer"
               frameBorder="0"
             ></iframe>
           </div>
 
           <div className="p-4 bg-[#1a1c1f] border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
-            <span className="text-xs text-gray-400 flex items-center gap-1 mr-2"><Server size={14} /> Change Stream Server:</span>
+            <span className="text-xs text-gray-400 flex items-center gap-1 mr-2"><Server size={14} /> Change Server:</span>
             {STREAM_SERVERS.map((server, idx) => (
               <button
                 key={idx}
@@ -247,6 +259,14 @@ export default function App() {
                 {server.name}
               </button>
             ))}
+            <a 
+              href={STREAM_SERVERS[activeServerIndex].url(selectedMovie.id)} 
+              target="_blank" 
+              rel="noreferrer"
+              className="px-4 py-1.5 rounded-full text-xs font-medium bg-white/10 text-emerald-400 hover:bg-white/20 border border-emerald-500/30 flex items-center gap-1"
+            >
+              Direct Link <ExternalLink size={12} />
+            </a>
           </div>
         </div>
       )}
